@@ -11,6 +11,7 @@ import requests
 
 WEBEX_API_BASE = "https://webexapis.com/v1"
 CHECK_INTERVAL_SECONDS = 30
+EXIT_STATUSES = {"active", "inactive"}
 
 
 def get_webex_person_status(email, token):
@@ -147,22 +148,24 @@ $speaker.Speak('{safe_message}')
 def watch_status(email, token):
     print(f"Watching Webex status for: {email}")
     print(f"Checking every {CHECK_INTERVAL_SECONDS} seconds.")
+    print(f"Will notify and exit when status is one of: {', '.join(sorted(EXIT_STATUSES))}")
     print("Press Ctrl+C to stop.\n")
 
     while True:
         try:
             status = get_webex_person_status(email, token)
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            normalized_status = status.lower()
 
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"[{now}] {email} status: {status}")
 
-            if status.lower() == "active":
-                message = f"{email} has become active on Webex."
+            if normalized_status in EXIT_STATUSES:
+                message = f"{email} is now {normalized_status} on Webex."
 
-                show_notification("Webex User Active", message)
+                show_notification("Webex Status Update", message)
                 speak_message(message)
 
-                print("\nUser is active. Exiting.")
+                print(f"\nUser is {normalized_status}. Exiting.")
                 break
 
             time.sleep(CHECK_INTERVAL_SECONDS)
@@ -199,7 +202,7 @@ def main():
 
     if not token:
         print("Error: Webex access token is required.")
-        print("Provide it with --token or set WEBEX_ACCESS_TOKEN.")
+        print("Provide it with --token or set the WEBEX_ACCESS_TOKEN environment variable.")
         sys.exit(1)
 
     watch_status(args.email, token)
